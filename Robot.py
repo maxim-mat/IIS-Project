@@ -9,7 +9,8 @@ def create_dict_to_index(container):
 def create_mdp_T_R(states, robot_actions, human_actions, final_state):
     T = np.abs(np.random.normal(size=(len(robot_actions), len(states), len(states))))
     for i, ac in enumerate(T):
-        T[i] /= ac.sum(axis=0)
+        for j, row in enumerate(ac):
+            T[i, j] /= row.sum()
     R = np.ones((len(states), len(robot_actions)), dtype=float)
 
     # need to init R of final state to 100
@@ -25,7 +26,7 @@ def cross_train(T, R, Simulation=None):
     :param Simulation:
     :return:
     """
-    solver = mdptb.mdp.ValueIteration(T, R, 0.9)
+    solver = mdptb.mdp.ValueIteration(T, R, 1)
     solver.run()
     pi = solver.policy
     print(pi)
