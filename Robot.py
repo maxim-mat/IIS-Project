@@ -40,23 +40,76 @@ def print_T(T, state_dict, actions_dict):
     return
 
 
-"""
+class Robot(object):
 
-Update transition matrix after forward phase 
-improve estimation of human choice.
+    def __init__(self, states, initial, goal, r_actions, h_actions=None, discount=1, max_iterations=10):
+        if type(states) != list:
+            raise ValueError("states must be list")
+        if type(r_actions) != list:
+            raise ValueError("robot actions must be list")
+        if type(h_actions) != list:
+            raise ValueError("human actions must be list")
+        if goal not in states:
+            raise ValueError("goal must be a state")
+        if initial not in states:
+            raise ValueError("initial must be a state")
+        self.states = states
+        self.r_actions = r_actions
+        self.h_actions = h_actions if h_actions is not None else r_actions  # default symmetric actions
+        self.goal = goal
+        self.initial = initial
+        self.current = self.initial
+        self.dr = discount
+        self.state_idx = {i: s for i, s in enumerate(self.states)}
+        self.idx_state = {v: k for k, v in self.state_idx}
+        self.action_idx = {i: s for i, s in enumerate(self.r_actions)}
+        self.idx_action = {v: k for k, v in self.action_idx}
+        self.max_iter = max_iterations
+        # create base matrices
+        self.T = np.abs(np.random.normal(size=(len(self.r_actions), len(self.states), len(self.states))))
+        for i, ac in enumerate(self.T):
+            for j, row in enumerate(ac):
+                self.T[i, j] /= row.sum()
+        self.R = np.ones((len(self.states), len(self.r_actions)), dtype=float)
+        self.policy = self.get_new_policy()
 
-"""
-def update_T(T, simulation_sequance):
-    return
+    def get_new_policy(self):
+        solver = mdptb.mdp.ValueIteration(self.T, self.R, self.dr)
+        solver.run()
+        return solver.policy
 
+    def run(self, simulation):
+        for _ in range(self.max_iter):
+            sequence = self.forward(simulation)
+            self.update_T(sequence)
+            sequence_rotation = self.rotation(simulation)
+            self.update_R(sequence_rotation)
+            self.policy = self.get_new_policy()
 
-"""
+    def forward(self, sim):
+        sq = []
+        while self.current != self.goal:
+            next_action = self.idx_action[self.policy[self.state_idx[self.current]]]
+            sq.append(next_action)
+            sim.send(next_action)
+            h_a, next_state = sim.recieve()
+            sq.extend([self.current, h_a, next_state])
+            self.current = next_state
+        return sq
 
-Add constant value to R in the states reached by the human choice
+    def rotation(self, sim):
+        sq = []
+        # 3. Set action a to observed human action
+        # 4. Sample robot action from T(current_state, a, next_state)
+        # 5. Record current_state, a
+        # 6. current_state = next_state
+        return sq
 
-"""
-def update_R(R, simulation_sequance):
-    return
+    def update_T(self, sq):
+        pass
+
+    def update_R(self, sq):
+        pass
 
 
 if __name__ == '__main__':
