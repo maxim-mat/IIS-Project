@@ -85,7 +85,9 @@ class Robot(object):
             sequence_rotation = self.rotation(simulation)
             self.update_R(sequence_rotation)
             self.policy = self.get_new_policy()
-
+    """
+    each round on the sq should be an inner cell to work with update T
+    """
     def forward(self, sim):
         sq = []
         while self.current != self.goal:
@@ -105,11 +107,22 @@ class Robot(object):
         # 6. current_state = next_state
         return sq
 
+    """
+    the added probability weight can be adjusted to frequncies 
+    """
     def update_T(self, sq):
-        pass
+        for r_action, state, h_action, state_star in sq:
+            self.T[r_action][state][state_star] += 1.0
+            self.T[r_action][state] = self.T[r_action][state]/ sum(self.T[r_action][state])
+        return
 
+    """
+    The added reward to human chosen actions, can be more complex.
+    """
     def update_R(self, sq):
-        pass
+        for state, h_action in sq:
+            self.R[state][h_action] += 1
+        return
 
 
 if __name__ == '__main__':
