@@ -101,7 +101,7 @@ class Robot(object):
 
     def rotation(self, sim):
         sq = []
-        # 3. Set action a to observed human action
+        # 3. Set action a to observed human action.
         # 4. Sample robot action from T(current_state, a, next_state)
         # 5. Record current_state, a
         # 6. current_state = next_state
