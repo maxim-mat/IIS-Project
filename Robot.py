@@ -85,10 +85,11 @@ class Robot(object):
             sequence_rotation = self.rotation(simulation)
             self.update_R(sequence_rotation)
             self.policy = self.get_new_policy()
-    """
-    each round on the sq should be an inner cell to work with update T
-    """
+
     def forward(self, sim):
+        """
+            each round on the sq should be an inner cell to work with update T
+        """
         sq = []
         while self.current != self.goal:
             next_action = self.idx_action[self.policy[self.state_idx[self.current]]]
@@ -100,26 +101,37 @@ class Robot(object):
         return sq
 
     def rotation(self, sim):
-        sq = []
+        """
         # 3. Set action a to observed human action.
         # 4. Sample robot action from T(current_state, a, next_state)
         # 5. Record current_state, a
         # 6. current_state = next_state
+        :param sim:
+        :return:
+        """
+        sq = []
+        h_a, state = sim.recieve()
+        next_state_distrib = self.T[h_a][state]
+        next_state_index = np.random.choice(range(len(next_state_distrib)), p=next_state_distrib)
+        next_state = self.idx_state[next_state_index]
+        sq.extend([state, h_a])
+        sim.send(next_state)
+        self.current = next_state
         return sq
 
-    """
-    the added probability weight can be adjusted to frequncies 
-    """
     def update_T(self, sq):
+        """
+            the added probability weight can be adjusted to frequncies
+        """
         for r_action, state, h_action, state_star in sq:
             self.T[r_action][state][state_star] += 1.0
-            self.T[r_action][state] = self.T[r_action][state]/ sum(self.T[r_action][state])
+            self.T[r_action][state] = self.T[r_action][state] / sum(self.T[r_action][state])
         return
 
-    """
-    The added reward to human chosen actions, can be more complex.
-    """
     def update_R(self, sq):
+        """
+            The added reward to human chosen actions, can be more complex.
+        """
         for state, h_action in sq:
             self.R[state][h_action] += 1
         return
