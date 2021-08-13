@@ -13,6 +13,7 @@ class Interface:
 
         self.iteration = 1
         self.phase = 'forward'
+        self.turn = 'Robot'
         self.last_human_action = None
 
         self.root = Tk()
@@ -48,6 +49,8 @@ class Interface:
 
         self.screws = {}
 
+        self.flag = IntVar(0)
+
         self.space = Label(self.middle_frame, text="", font=("Arial", 18))
         self.space.grid(row=4, column=0)
 
@@ -67,9 +70,9 @@ class Interface:
         self.root.mainloop()
 
     # side frame stuff
-    def set_side_frame(self, turn):
+    def set_side_frame(self):
         iteration_label = Label(self.side_frame, text=f"iteration: {self.iteration} out of {self.iterations}\n")
-        turn_label = Label(self.side_frame, text=f"turn: {turn}\n")
+        turn_label = Label(self.side_frame, text=f"turn: {self.turn}\n")
         phase_label = Label(self.side_frame, text=f"phase: {self.phase}\n")
         iteration_label.grid(row=0, column=0)
         turn_label.grid(row=1, column=0)
@@ -85,7 +88,7 @@ class Interface:
         self.canvas.grid(row=0, column=0)
         self.canvas.create_image(0, 0, image=self.img, anchor=NW)
 
-        self.set_side_frame("Robot")
+        self.set_side_frame()
 
         self.drill1.grid(row=0, column=0, ipadx=5, padx=70)
         self.drill2.grid(row=0, column=1, ipadx=5, padx=70)
@@ -98,6 +101,7 @@ class Interface:
         self.screw3.grid(row=2, column=2, padx=70)
 
         self.next_phase.grid(row=1, column=4)
+        self.root.after(1000, self.call_backend)
 
     def next_click(self):
         self.canvas.grid_remove()
@@ -107,11 +111,13 @@ class Interface:
 
         if self.phase == 'forward':
             self.phase = 'rotation'
-            self.set_side_frame("Human")
+            self.turn = 'Human'
+            self.set_side_frame()
         elif self.phase == 'rotation':
             self.phase = 'forward'
             self.iteration += 1
-            self.set_side_frame("Robot")
+            self.turn = 'Robot'
+            self.set_side_frame()
 
         self.drill1.grid(row=0, column=0, ipadx=5, padx=70)
         self.drill2.grid(row=0, column=1, ipadx=5, padx=70)
@@ -128,27 +134,40 @@ class Interface:
                               'place_screw': [False, False, False],
                               'screw': [False, False, False]}
 
-    def drill_click(self, index, turn='human'):
+    def drill_click(self, index):
         if self.valid_actions['drill'][index]:
             x1, y1 = get_coordinates(index)
             self.canvas.create_rectangle(x1, y1, x1 + 10, y1 + 40, outline="white", fill="white")
-            if turn == 'human':
+            if self.turn == 'Human':
                 self.last_human_action = ('drill', index)
+                self.turn = 'Robot'
+                self.flag.set(1)
+                self.set_side_frame()
+            else:
+                self.turn = 'Human'
+                self.set_side_frame()
 
             self.valid_actions['place_screw'][index] = True
             self.valid_actions['drill'][index] = False
+
         else:
             warning_drill = Label(self.middle_frame, text="you can't drill here", font=("Arial", 18), fg="red")
             warning_drill.grid(row=4, column=0, ipadx=100)
             self.root.after(2000, lambda: warning_drill.destroy())
 
-    def place_click(self, index, screws, turn='human'):
+    def place_click(self, index, screws):
         if self.valid_actions['place_screw'][index]:
             x1, y2 = get_coordinates(index)
             screw = self.canvas.create_rectangle(x1, y2 - 40, x1 + 10, y2, outline="gray", fill="gray")
             screws[index] = screw
-            if turn == 'human':
+            if self.turn == 'Human':
                 self.last_human_action = ('place_screw', index)
+                self.turn = 'Robot'
+                self.flag.set(1)
+                self.set_side_frame()
+            else:
+                self.turn = 'Human'
+                self.set_side_frame()
 
             self.valid_actions['screw'][index] = True
             self.valid_actions['place_screw'][index] = False
@@ -157,13 +176,19 @@ class Interface:
             warning_place.grid(row=4, column=0, ipadx=100)
             self.root.after(2000, lambda: warning_place.destroy())
 
-    def screw_click(self, index, screws, turn='human'):
+    def screw_click(self, index, screws):
         if self.valid_actions['screw'][index]:
             self.canvas.delete(screws[index])
             x1, y1 = get_coordinates(index)
             self.canvas.create_rectangle(x1, y1, x1 + 10, y1 + 40, outline="gray", fill="gray")
-            if turn == 'human':
+            if self.turn == 'human':
                 self.last_human_action = ('screw', index)
+                self.turn = 'Robot'
+                self.flag.set(1)
+                self.set_side_frame()
+            else:
+                self.turn = 'Human'
+                self.set_side_frame()
 
             self.valid_actions['screw'][index] = False
         else:
@@ -179,18 +204,21 @@ class Interface:
         self.state[action[1]] = action[0]
 
         # visually change the interface and update the valid actions
-        self.valid_actions[action[0]][action[1]] = False
         if action[0] == 'drill':
-            self.drill_click(action[1], turn='robot')
+            self.drill_click(action[1])
         elif action[0] == 'place_screw':
-            self.place_click(action[1], self.screws, turn='robot')
+            self.place_click(action[1], self.screws)
         elif action[0] == 'screw':
-            self.screw_click(action[1], self.screws, turn='robot')
+            self.screw_click(action[1], self.screws)
+
+        self.flag.set(0)
 
     # Gets the action selected by the user
     # Input: No input
     # Output: action - tuple(action name, action index)
     def get_action(self):
+        if not self.last_human_action:
+            self.root.wait_variable(self.flag)
         action = self.last_human_action
 
         # changing the state
@@ -203,7 +231,14 @@ class Interface:
         elif action[0] == 'place_screw':
             self.valid_actions['screw'][action[1]] = True
 
+        self.last_human_action = None
         return action
+
+    def call_backend(self):
+        self.do_action(('drill', 1))
+        print(self.get_action())
+        self.do_action(('drill', 0))
+        print(self.get_action())            # needs to be interface.root.after(1000, do_action(...)) on backend
 
 
 # return the x,y coordinates of the left touch point with the table
