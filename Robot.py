@@ -61,9 +61,9 @@ class Robot(object):
         self.current = self.initial
         self.dr = discount
         self.state_idx = {i: s for i, s in enumerate(self.states)}
-        self.idx_state = {v: k for k, v in self.state_idx}
+        self.idx_state = {v: k for k, v in self.state_idx.items()}
         self.action_idx = {i: s for i, s in enumerate(self.r_actions)}
-        self.idx_action = {v: k for k, v in self.action_idx}
+        self.idx_action = {v: k for k, v in self.action_idx.items()}
         self.max_iter = max_iterations
         # create base matrices
         self.T = np.abs(np.random.normal(size=(len(self.r_actions), len(self.states), len(self.states))))
