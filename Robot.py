@@ -42,7 +42,7 @@ def print_T(T, state_dict, actions_dict):
 
 class Robot(object):
 
-    def __init__(self, states, initial, goal, r_actions, h_actions=None, discount=1, max_iterations=10):
+    def __init__(self, states, initial, goal, r_actions, action_transition, h_actions=None, discount=1, max_iterations=10):
         if type(states) != list:
             raise ValueError("states must be list")
         if type(r_actions) != list:
@@ -56,20 +56,29 @@ class Robot(object):
         self.states = states
         self.r_actions = r_actions
         self.h_actions = h_actions if h_actions is not None else r_actions  # default symmetric actions
+        self.action_transition = action_transition
         self.goal = goal
         self.initial = initial
         self.current = self.initial
         self.dr = discount
-        self.state_idx = {i: s for i, s in enumerate(self.states)}
-        self.idx_state = {v: k for k, v in self.state_idx.items()}
-        self.action_idx = {i: s for i, s in enumerate(self.r_actions)}
-        self.idx_action = {v: k for k, v in self.action_idx.items()}
+        self.idx_state = {i: s for i, s in enumerate(self.states)}
+        self.state_idx = {v: k for k, v in self.idx_state.items()}
+        self.idx_action = {i: s for i, s in enumerate(self.r_actions)}
+        self.action_idx = {v: k for k, v in self.idx_action.items()}
         self.max_iter = max_iterations
         # create base matrices
-        self.T = np.abs(np.random.normal(size=(len(self.r_actions), len(self.states), len(self.states))))
+        self.T = np.zeros(shape=(len(self.r_actions), len(self.states), len(self.states)))
+        for action in self.r_actions:
+            a_idx = self.action_idx[action]
+            for pre in self.action_transition[action]["pre"]:
+                for post in self.action_transition[action]["post"]:
+                    self.T[a_idx, self.state_idx[pre], self.state_idx[post]] = 1
         for i, ac in enumerate(self.T):
             for j, row in enumerate(ac):
-                self.T[i, j] /= row.sum()
+                if row.sum() > 0:
+                    self.T[i, j] /= row.sum()
+                else:
+                    self.T[i, j, 0] = 1
         self.R = np.ones((len(self.states), len(self.r_actions)), dtype=float)
         self.policy = self.get_new_policy()
 
@@ -93,9 +102,10 @@ class Robot(object):
         sq = []
         while self.current != self.goal:
             next_action = self.idx_action[self.policy[self.state_idx[self.current]]]
+            print(next_action)
             sq.append(next_action)
-            sim.send(next_action)
-            h_a, next_state = sim.recieve()
+            sim.do_action(next_action)
+            h_a, next_state = sim.get_action(), tuple(sim.get_state())
             sq.extend([self.current, h_a, next_state])
             self.current = next_state
         return sq

@@ -1,4 +1,5 @@
 from tkinter import *
+from Robot import Robot
 
 
 class Interface:
@@ -66,6 +67,26 @@ class Interface:
         self.screw3 = Button(self.bottom_frame, text="screw", padx=30, pady=10, command=lambda: self.screw_click(2, self.screws))
 
         self.next_phase = Button(self.next_frame, text='next phase', pady=10, command=lambda: self.next_click())
+
+        l = [None, "drill", "place_screw", "screw"]
+        states = [(x, y, z) for x in l for y in l for z in l]
+        initial = (None, None, None)
+        goal = ("screw", "screw", "screw")
+        actions = ["drill", "place_screw", "screw"]
+        robot_actions = [("drill", x) for x in range(len(self.state))] + [("screw", x) for x in range(len(self.state))]
+        human_actions = [("place_screw", x) for x in range(len(self.state))]
+        action_transition = {}
+        action_precondition = {"drill": None, "place_screw": "drill", "screw": "place_screw"}
+        action_effect = {"drill": "drill", "place_screw": "place_screw", "screw": "screw"}
+        for a_name, a_target in robot_actions:
+            action_transition[(a_name, a_target)] = {"pre": [], "post": []}
+            for state in states:
+                if state[a_target] == action_precondition[a_name]:
+                    action_transition[(a_name, a_target)]["pre"].append(state)
+                if state[a_target] == action_effect[a_name]:
+                    action_transition[(a_name, a_target)]["post"].append(state)
+
+        self.robot = Robot(states, initial, goal, robot_actions, action_transition, human_actions)
 
         self.root.mainloop()
 
@@ -234,11 +255,15 @@ class Interface:
         self.last_human_action = None
         return action
 
+    def get_state(self):
+        return self.state
+
     def call_backend(self):
-        self.do_action(('drill', 1))
-        print(self.get_action())
-        self.do_action(('drill', 0))
-        print(self.get_action())            # needs to be interface.root.after(1000, do_action(...)) on backend
+        self.robot.run(self)
+        # self.do_action(('drill', 1))
+        # print(self.get_action())
+        # self.do_action(('drill', 0))
+        # print(self.get_action())            # needs to be interface.root.after(1000, do_action(...)) on backend
 
 
 # return the x,y coordinates of the left touch point with the table
