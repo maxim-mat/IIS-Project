@@ -79,8 +79,10 @@ class Robot(object):
                     self.T[i, j] /= row.sum()
                 else:
                     self.T[i, j, 0] = 1
-        self.R = np.ones((len(self.states), len(self.r_actions)), dtype=float)
+        self.R = np.zeros((len(self.states), len(self.r_actions)), dtype=float)
+        self.R[self.state_idx[self.goal]] = 100
         self.policy = self.get_new_policy()
+        print(self.policy)
 
     def get_new_policy(self):
         solver = mdptb.mdp.ValueIteration(self.T, self.R, self.dr)
@@ -101,6 +103,7 @@ class Robot(object):
         """
         sq = []
         while self.current != self.goal:
+            print(self.current)
             next_action = self.idx_action[self.policy[self.state_idx[self.current]]]
             print(next_action)
             sq.append(next_action)
@@ -108,6 +111,7 @@ class Robot(object):
             h_a, next_state = sim.get_action(), tuple(sim.get_state())
             sq.extend([self.current, h_a, next_state])
             self.current = next_state
+        print("exit forward")
         return sq
 
     def rotation(self, sim):
@@ -119,6 +123,7 @@ class Robot(object):
         :param sim:
         :return:
         """
+        print("enter rotation")
         sq = []
         h_a, state = sim.recieve()
         next_state_distrib = self.T[h_a][state]
@@ -127,6 +132,7 @@ class Robot(object):
         sq.extend([state, h_a])
         sim.send(next_state)
         self.current = next_state
+        print("exit rotation")
         return sq
 
     def update_T(self, sq):
