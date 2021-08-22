@@ -109,6 +109,7 @@ class Robot(object):
             sq.append(next_action)
             sim.do_action(next_action)
             h_a, next_state = sim.get_action(), tuple(sim.get_state())
+            # h_msg = sim.get_message()
             sq.extend([self.current, h_a, next_state])
             self.current = next_state
         print("exit forward")
