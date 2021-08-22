@@ -205,6 +205,7 @@ class Interface:
         self.canvas.create_image(0, 0, image=self.img, anchor=NW)
 
         if self.phase == 'forward':
+            self.flag.set(1)
             self.phase = 'rotation'
             self.turn = 'Human'
             self.set_side_frame()
@@ -245,6 +246,9 @@ class Interface:
         self.screw3.grid(row=2, column=2, padx=70)
 
         self.state = [None, None, None]
+
+    def set_flag(self):
+        self.flag.set(0)
 
     def skip_click(self):
         if self.turn == 'Human':

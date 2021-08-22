@@ -93,6 +93,7 @@ class Robot(object):
         for _ in range(self.max_iter):
             sequence = self.forward(simulation)
             self.update_T(sequence)
+            simulation.set_flag()
             sequence_rotation = self.rotation(simulation)
             self.update_R(sequence_rotation)
             self.policy = self.get_new_policy()
@@ -103,15 +104,16 @@ class Robot(object):
         """
         sq = []
         while self.current != self.goal:
-            print(self.current)
             next_action = self.idx_action[self.policy[self.state_idx[self.current]]]
             print(next_action)
             sq.append(next_action)
             sim.do_action(next_action)
             h_a, next_state = sim.get_action(), tuple(sim.get_state())
             # h_msg = sim.get_message()
-            sq.extend([self.current, h_a, next_state])
+            sq.append((self.current, next_action, h_a, next_state))
             self.current = next_state
+            print(self.current)
+        print(sq)
         print("exit forward")
         return sq
 
@@ -126,13 +128,14 @@ class Robot(object):
         """
         print("enter rotation")
         sq = []
-        h_a, state = sim.recieve()
-        next_state_distrib = self.T[h_a][state]
-        next_state_index = np.random.choice(range(len(next_state_distrib)), p=next_state_distrib)
-        next_state = self.idx_state[next_state_index]
-        sq.extend([state, h_a])
-        sim.send(next_state)
-        self.current = next_state
+        while self.current != self.goal:
+            h_a, state = sim.get_action(), tuple(sim.get_state())
+            next_state_distrib = self.T[h_a][self.current]
+            next_state_index = np.random.choice(range(len(next_state_distrib)), p=next_state_distrib)
+            next_state = self.idx_state[next_state_index]
+            sq.extend([self.current, h_a])
+            sim.send(next_state)    # TODO david make this line work
+            self.current = next_state
         print("exit rotation")
         return sq
 
@@ -140,7 +143,7 @@ class Robot(object):
         """
             the added probability weight can be adjusted to frequncies
         """
-        for r_action, state, h_action, state_star in sq:
+        for state, r_action, h_action, state_star in sq:
             self.T[r_action][state][state_star] += 1.0
             self.T[r_action][state] = self.T[r_action][state] / sum(self.T[r_action][state])
         return
