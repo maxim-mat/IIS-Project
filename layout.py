@@ -109,21 +109,25 @@ class Interface:
         self.buttons[('drill', 2)] = Button(self.chatbot_frame, image=self.drill3_img, bd=0,
                                        command=lambda: self.send_suggestion("drill in place 3", True))
         self.buttons[('place', 0)] = Button(self.chatbot_frame, image=self.place1_img, bd=0,
-                                       command=lambda: self.send_suggestion("place in hole 1", True))
+                                       command=lambda: self.send_suggestion("place_screw in hole 1", True))
         self.buttons[('place', 1)] = Button(self.chatbot_frame, image=self.place2_img, bd=0,
-                                       command=lambda: self.send_suggestion("place in hole 2", True))
+                                       command=lambda: self.send_suggestion("place_screw in hole 2", True))
         self.buttons[('place', 2)] = Button(self.chatbot_frame, image=self.place3_img, bd=0,
-                                       command=lambda: self.send_suggestion("place in hole 3", True))
+                                       command=lambda: self.send_suggestion("place_screw in hole 3", True))
         self.buttons[('screw', 0)] = Button(self.chatbot_frame, image=self.screw1_img, bd=0,
-                                       command=lambda: self.send_suggestion("screw in the first screw", True))
+                                       command=lambda: self.send_suggestion("screw in place 1", True))
         self.buttons[('screw', 1)] = Button(self.chatbot_frame, image=self.screw2_img, bd=0,
-                                       command=lambda: self.send_suggestion("screw in the second screw", True))
+                                       command=lambda: self.send_suggestion("screw in place 2", True))
         self.buttons[('screw', 2)] = Button(self.chatbot_frame, image=self.screw3_img, bd=0,
-                                       command=lambda: self.send_suggestion("screw in the third screw", True))
+                                       command=lambda: self.send_suggestion("screw in place 3", True))
         self.chat_history.tag_config('writer', foreground="#001889", font=("Calibri", 14, 'bold'))
         self.chat_history.tag_config('status', foreground="#001889", font=("Arial", 14))
         self.last_human_message = None
+        self.robot = None
 
+        self.root.mainloop()
+
+    def initiate_robot(self):
         l = [None, "drill", "place_screw", "screw"]
         states = [(x, y, z) for x in l for y in l for z in l]
         initial = (None, None, None)
@@ -134,17 +138,21 @@ class Interface:
         action_transition = {}
         action_precondition = {"drill": None, "place_screw": "drill", "screw": "place_screw"}
         action_effect = {"drill": "drill", "place_screw": "place_screw", "screw": "screw"}
-        for a_name, a_target in robot_actions:
+        for a_name, a_target in robot_actions+human_actions:
             action_transition[(a_name, a_target)] = {"pre": [], "post": []}
             for state in states:
                 if state[a_target] == action_precondition[a_name]:
                     action_transition[(a_name, a_target)]["pre"].append(state)
                 if state[a_target] == action_effect[a_name]:
                     action_transition[(a_name, a_target)]["post"].append(state)
+        robot_actions.append(("wait", -1))
+        human_actions.append(("wait", -1))
+        action_transition[("wait", -1)] = {"pre": [], "post": []}
+        for state in states:
+            action_transition[("wait", -1)]["pre"].append(state)
+            action_transition[("wait", -1)]["post"].append(state)
 
-        self.robot = Robot(states, initial, goal, robot_actions, action_transition, human_actions)
-
-        self.root.mainloop()
+        self.robot = Robot(states, initial, goal, robot_actions, action_transition, human_actions, max_iterations=self.iterations)
 
     # side frame stuff
     def set_side_frame(self):
@@ -169,7 +177,8 @@ class Interface:
 
     # button to continue to the simulation
     def continue_click(self):
-        self.iterations = self.iterations_input.get()
+        self.iterations = int(self.iterations_input.get())
+        self.initiate_robot()
         self.num_iter_label.grid_remove()
         self.iterations_input.grid_remove()
         self.continue_button.grid_remove()
@@ -205,7 +214,6 @@ class Interface:
         self.canvas.create_image(0, 0, image=self.img, anchor=NW)
 
         if self.phase == 'forward':
-            self.flag.set(1)
             self.phase = 'rotation'
             self.turn = 'Human'
             self.set_side_frame()
@@ -223,6 +231,8 @@ class Interface:
             self.phase = 'forward'
             self.iteration += 1
             self.turn = 'Robot'
+            if self.iteration > self.iterations:
+                self.root.destroy()
             self.set_side_frame()
             self.chat_history.insert(INSERT, '\n--------------------------------\n')
             self.chat_history.insert(INSERT, f'\niteration: {self.iteration}\nphase: {self.phase}\n\n', 'status')
@@ -247,9 +257,6 @@ class Interface:
 
         self.state = [None, None, None]
 
-    def set_flag(self):
-        self.flag.set(0)
-
     def skip_click(self):
         if self.turn == 'Human':
             self.turn = 'Robot'
@@ -272,6 +279,7 @@ class Interface:
         elif self.turn == 'Robot' and self.valid_robot_actions['drill'][index]:
             x1, y1 = get_coordinates(index)
             self.canvas.create_rectangle(x1, y1, x1 + 10, y1 + 40, outline="#f0f0f0", fill="#f0f0f0")
+            self.last_human_message = None
             self.turn = 'Human'
             self.set_side_frame()
 
@@ -299,6 +307,7 @@ class Interface:
             x1, y2 = get_coordinates(index)
             screw = self.canvas.create_rectangle(x1, y2 - 40, x1 + 10, y2, outline="gray", fill="gray")
             screws[index] = screw
+            self.last_human_message = None
             self.turn = 'Human'
             self.set_side_frame()
             self.valid_human_actions['screw'][index] = True
@@ -324,6 +333,7 @@ class Interface:
             self.canvas.delete(screws[index])
             x1, y1 = get_coordinates(index)
             self.canvas.create_rectangle(x1, y1, x1 + 10, y1 + 40, outline="gray", fill="gray")
+            self.last_human_message = None
             self.turn = 'Human'
             self.set_side_frame()
             self.valid_robot_actions['screw'][index] = False
@@ -338,15 +348,18 @@ class Interface:
     # Output: state - dictionary of the states of all
     def do_action(self, action):
         # changing the state
-        self.state[action[1]] = action[0]
+        if action != ("wait", -1):
+            self.state[action[1]] = action[0]
 
         # visually change the interface and update the valid actions
         if action[0] == 'drill':
-            self.drill_click(action[1])
+            self.root.after(400, lambda: self.drill_click(action[1]))
         elif action[0] == 'place_screw':
-            self.place_click(action[1], self.screws)
+            self.root.after(400, lambda: self.place_click(action[1], self.screws))
         elif action[0] == 'screw':
-            self.screw_click(action[1], self.screws)
+            self.root.after(400, lambda: self.screw_click(action[1], self.screws))
+        elif action[0] == "wait":
+            self.skip_click()
 
         self.flag.set(0)
 
@@ -359,7 +372,7 @@ class Interface:
         action = self.last_human_action
 
         if action is None:
-            return action
+            return ("wait", -1)
 
         # changing the state
         self.state[action[1]] = action[0]               # set this according to the clicked button
@@ -378,6 +391,8 @@ class Interface:
     # input: message to send to human
     # output: no output
     def send_robot_message(self, message):
+        if message is None:
+            return
         self.chat_history.insert(INSERT, "Robot: ", 'writer')
         self.chat_history.insert(INSERT, f'{message}\n')
 
@@ -399,8 +414,18 @@ class Interface:
         if button == "approve":
             self.send_suggestion("I approve this action")
         elif button == "reject":
-            self.send_suggestion("I reject this action")
-            self.suggest_action()
+            available_actions = 0
+            for action in self.valid_robot_actions.keys():
+                for index in range(3):
+                    if self.valid_robot_actions[action][index]:
+                        available_actions += 1
+            if available_actions > 0:
+                self.send_suggestion("I reject this action")
+                self.suggest_action()
+            else:
+                self.chat_history.insert(INSERT, 'that is the only action available!\n')
+                self.approve_button.grid(row=1, column=0)
+                self.reject_button.grid(row=2, column=0)
 
         self.chat_history.see(INSERT)
 
@@ -424,7 +449,7 @@ class Interface:
         else:
             # place screw in different place
             for index in range(2):
-                if self.valid_robot_actions['place'][index]:
+                if self.valid_robot_actions['place_screw'][index]:
                     self.buttons[('place', index)].grid(row=index+1, column=0)
                     grided.append(('place', index))
 
