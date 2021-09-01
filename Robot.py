@@ -48,7 +48,7 @@ class Robot(object):
         self.policy = self.get_new_policy()
         #print(self.T[0])
         #print(self.T[4])
-        print(self.policy)
+        #print(self.policy)
 
     def get_new_policy(self):
         solver = mdptb.mdp.ValueIteration(self.T, self.R, self.dr)
@@ -78,7 +78,7 @@ class Robot(object):
         m_sq = []
         while self.current != self.goal:
             next_action = self.idx_action[self.policy[self.state_idx[self.current]]]
-            print(next_action)
+            #print(next_action)
             sim.do_action(next_action)  # this apply the robot action
             #sim.root.after(1000, sim.do_action(next_action))
             end_state = None
@@ -96,10 +96,10 @@ class Robot(object):
             m_sq.append((self.current, next_action, h_msg))
             sq.append((self.current, next_action, h_a, next_state))
             self.current = next_state
-            print(self.current)
-        print(sq)
-        print("exit forward")
-        print(m_sq)
+            #print(self.current)
+        #print(sq)
+        #print("exit forward")
+        #print(m_sq)
         return sq, m_sq
 
     def rotation(self, sim):
@@ -111,7 +111,7 @@ class Robot(object):
         :param sim:
         :return:
         """
-        print("enter rotation")
+        #print("enter rotation")
         sq = []
         m_sq = []
         while self.current != self.goal:
@@ -130,14 +130,14 @@ class Robot(object):
                     if self.action_transition[p_action]["pre"][p_post] == state and self.action_transition[p_action]["post"][p_post] == next_state:
                         sim.do_action(p_action)
                         #sim.root.after(1000, sim.do_action(p_action))
-                        print(state)
-                        print(p_action)
+                        #print(state)
+                        #print(p_action)
             self.current = next_state
         if len(m_sq) > 0:
             m_sq[-1].append(None)
-        print(sq)
-        print("exit rotation")
-        print(m_sq)
+        #print(sq)
+        #print("exit rotation")
+        #print(m_sq)
         return sq, m_sq
 
     def update_T(self, sq):
